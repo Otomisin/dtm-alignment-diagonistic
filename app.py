@@ -14,7 +14,7 @@ import streamlit as st
 
 from config import (PAGE_CONFIG, DEFAULTS, STATUS_COLOURS_HEX,
                     STATUS_FONT_HEX, STATUS_EMOJI, inject_css)
-from matcher import STRING_DISTANCE_SCORERS, match_surveys, resolve_col
+from matcher import match_surveys, resolve_col
 from exporter import export_alignment_excel
 
 # ────────────────────────────────────────────────────────────

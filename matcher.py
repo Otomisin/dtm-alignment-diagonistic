@@ -188,7 +188,7 @@ def match_surveys(
     formcomponents=None,   # e.g. "Baseline Sub-Area Assessment"
     question_category=None,   # e.g. "Core"  (informational only)
     missing_question_category=None,   # e.g. ["Core"]
-    string_distance_algorithm: str = "Jaro-Winkler",
+    string_distance_algorithm: str = "Jaro",
     component_match_components=None,   # additional names for ComponentMatch check
     # ── progress callback ────────────────────────────────────
     progress_cb=None,   # callable(msg: str, pct: float)
