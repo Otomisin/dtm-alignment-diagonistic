@@ -29,7 +29,7 @@ PAGE_CONFIG = {
 
 DEFAULTS = {
     "datakit_sheet":    "myWorkSheet",
-    "survey_sheet":     "survey_raw",
+    "survey_sheet":     "survey",
     "formcomponents":   "Baseline Sub-Area Assessment",
     "fuzzy_threshold":  0.20,
     "df1_key_col":      "name",

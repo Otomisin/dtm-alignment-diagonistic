@@ -390,19 +390,20 @@ def match_surveys(
                 alignment_status[i] = "DiscouragedQuestion"
 
     # ── ComponentMatch ───────────────────────────────────────
+    # Reports the *category* (e.g. Core / Optional / Recommended /
+    # Discouraged) the matched Datakit row lists for this component,
+    # not just whether it's mentioned at all.
     component_match: list = [None] * n1
     if use_comp_match:
         fc = [formcomponents] if isinstance(
             formcomponents, str) else list(formcomponents)
         cm_names = fc + (list(component_match_components)
                          if component_match_components else [])
-        cm_pat = "|".join(re.escape(n) for n in cm_names)
         for i in range(n1):
             if matched_row[i] is not None:
                 cell = comp2[matched_row[i]]
-                component_match[i] = (
-                    "Yes" if re.search(cm_pat, cell, re.IGNORECASE) else "No"
-                )
+                matched_cat = _find_component_match(cell, cm_names)
+                component_match[i] = matched_cat if matched_cat else "No"
 
     # ── Assemble result DataFrame ────────────────────────────
     if progress_cb:
@@ -473,7 +474,7 @@ def match_surveys(
             cat_label = matched_cat[0].upper() + matched_cat[1:]
             row["AlignmentStatus"] = f"Missing{cat_label}Question"
             if use_comp_match:
-                row["ComponentMatch"] = "Yes"
+                row["ComponentMatch"] = matched_cat
             row[out_key] = keys2[j]
             if use_id:
                 row[out_id] = ids2[j]

@@ -146,7 +146,7 @@ with col_upload:
         "Upload survey form (.xlsx)",
         type=["xlsx"],
         label_visibility="collapsed",
-        help="Expects a sheet called 'survey_raw' by default (configurable below)",
+        help="Expects a sheet called 'survey' by default (configurable below)",
     )
     survey_sheet = st.text_input(
         "Survey sheet name",

@@ -181,10 +181,14 @@ def export_alignment_excel(
     n_missing_appended = int((~is_df1).sum())
 
     comp_col_present = "ComponentMatch" in result_df.columns
-    n_comp_yes = int((result_df["ComponentMatch"] ==
-                     "Yes").sum()) if comp_col_present else 0
-    n_comp_no = int((result_df["ComponentMatch"] ==
-                    "No").sum()) if comp_col_present else 0
+    comp_vc = result_df["ComponentMatch"].value_counts() if comp_col_present else {}
+    _CAT_ORDER = ["Core", "Recommended", "Optional", "Discouraged"]
+    comp_categories = [c for c in _CAT_ORDER if c in comp_vc.index]
+    comp_categories += [
+        c for c in comp_vc.index if c not in comp_categories and c != "No"
+    ]
+    if "No" in comp_vc.index:
+        comp_categories.append("No")
 
     def _pct(x: int, tot: int = n_df1) -> str:
         if tot == 0:
@@ -232,8 +236,9 @@ def export_alignment_excel(
         ("Discouraged Question",             n_disc,     _pct(n_disc)),
         (f"Missing {formcomponents} Core",   n_miss_core, _pct(n_miss_core)),
         ("",                                 None,       ""),
-        ("Component Match — Yes",            n_comp_yes, _pct(n_comp_yes)),
-        ("Component Match — No",             n_comp_no,  _pct(n_comp_no)),
+    ] + [
+        (f"Component Match — {cat}", int(comp_vc[cat]), _pct(int(comp_vc[cat])))
+        for cat in comp_categories
     ]
 
     _STAT_KW: Dict[str, str] = {
