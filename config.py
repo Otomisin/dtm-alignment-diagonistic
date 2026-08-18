@@ -32,6 +32,7 @@ DEFAULTS = {
     "survey_sheet":     "survey",
     "formcomponents":   "Baseline Sub-Area Assessment",
     "fuzzy_threshold":  0.20,
+    "missing_categories": ["Core"],
     "df1_key_col":      "name",
     "df1_text_col":     "label::English(en)",
     "df1_type_col":     "type",
