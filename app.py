@@ -81,6 +81,7 @@ for key, default in [
     ("result", None),
     ("excel_buf", None),
     ("last_survey_name", None),
+    ("missing_categories_used", None),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -156,6 +157,29 @@ with st.sidebar:
             "Lower = stricter. Default 0.20 is roughly >= 80% similarity."
         ),
     )
+
+    st.markdown(
+        "Categories to report as missing:",
+        help=(
+            "A Datakit question tagged with this component that's absent "
+            "from the uploaded survey is reported as \"missing\" — but only "
+            "for the categories checked here. Core is on by default; check "
+            "Optional/Recommended too if you also want those gaps surfaced."
+        ),
+    )
+    _flag_core = st.checkbox(
+        "Core", value="Core" in DEFAULTS["missing_categories"])
+    _flag_recommended = st.checkbox(
+        "Recommended", value="Recommended" in DEFAULTS["missing_categories"])
+    _flag_optional = st.checkbox(
+        "Optional", value="Optional" in DEFAULTS["missing_categories"])
+    missing_categories = [
+        cat for cat, checked in [
+            ("Core", _flag_core),
+            ("Recommended", _flag_recommended),
+            ("Optional", _flag_optional),
+        ] if checked
+    ]
 
     # ── Column mappings ──────────────────────────────────────
     # The survey file itself is only uploaded further down in the main
@@ -367,7 +391,7 @@ if run_clicked:
             df2_component_col=df2_comp_col or None,
             fuzzy_threshold=fuzzy_threshold,
             formcomponents=formcomponents,
-            missing_question_category=["Core"],
+            missing_question_category=missing_categories or None,
             progress_cb=_on_progress,
         )
     except Exception as exc:
@@ -394,6 +418,7 @@ if run_clicked:
     st.session_state.result = result
     st.session_state.excel_buf = excel_buf
     st.session_state.last_survey_name = survey_file.name
+    st.session_state.missing_categories_used = missing_categories
 
 
 # ────────────────────────────────────────────────────────────
@@ -421,6 +446,11 @@ if st.session_state.result is not None:
         return int(vc.get(key, 0))
 
     n_missing_appended = int((~is_df1).sum())
+    _missing_cats_used = st.session_state.missing_categories_used or []
+    _missing_label = (
+        "🔴 Missing (" + ", ".join(_missing_cats_used) + ")"
+        if _missing_cats_used else "🔴 Missing"
+    )
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("Total survey rows",      n_df1)
@@ -428,7 +458,7 @@ if st.session_state.result is not None:
     c3.metric("🔍 Needs Verification",   _s("NeedsVerification"))
     c4.metric("⚠️ FP Review",            _s("FPReview"))
     c5.metric("🚫 Discouraged",          _s("DiscouragedQuestion"))
-    c6.metric("🔴 Missing Core",         n_missing_appended)
+    c6.metric(_missing_label,           n_missing_appended)
 
     # ── Alignment table ─────────────────────────────────────
     st.divider()
@@ -504,7 +534,7 @@ if st.session_state.result is not None:
         st.caption(
             f"**3 sheets:** Summary · Survey_Alignment_Diagnostics "
             f"({n_total} rows: {n_df1} survey + {n_miss} missing) "
-            f"· Missing_BSA_Core"
+            f"· Missing_Questions"
         )
 
 else:

@@ -143,7 +143,8 @@ def export_alignment_excel(
     Sheets:
         Summary                      — dashboard + legend
         Survey_Alignment_Diagnostics — all rows, colour-coded
-        Missing_BSA_Core             — only Missing* rows
+        Missing_Questions            — only Missing* rows (whichever
+                                        categories were flagged as missing)
     """
 
     wb = Workbook()
@@ -174,9 +175,15 @@ def export_alignment_excel(
     n_verif = int(status_vc.get("NeedsVerification", 0))
     n_fpr = int(status_vc.get("FPReview", 0))
     n_disc = int(status_vc.get("DiscouragedQuestion", 0))
-    n_miss_core = sum(
-        v for k, v in status_vc.items()
-        if isinstance(k, str) and k.startswith("Missing")
+    _MISSING_CAT_ORDER = ["Core", "Recommended", "Optional"]
+    missing_breakdown = [
+        (k[len("Missing"):-len("Question")], int(v))
+        for k, v in status_vc.items()
+        if isinstance(k, str) and k.startswith("Missing") and k.endswith("Question")
+    ]
+    missing_breakdown.sort(
+        key=lambda t: _MISSING_CAT_ORDER.index(t[0])
+        if t[0] in _MISSING_CAT_ORDER else len(_MISSING_CAT_ORDER)
     )
     n_missing_appended = int((~is_df1).sum())
 
@@ -234,7 +241,10 @@ def export_alignment_excel(
         ("Needs Verification (fuzzy match)", n_verif,    _pct(n_verif)),
         ("FP Review (no match)",             n_fpr,      _pct(n_fpr)),
         ("Discouraged Question",             n_disc,     _pct(n_disc)),
-        (f"Missing {formcomponents} Core",   n_miss_core, _pct(n_miss_core)),
+    ] + [
+        (f"Missing {formcomponents} {cat}", n, _pct(n))
+        for cat, n in missing_breakdown
+    ] + [
         ("",                                 None,       ""),
     ] + [
         (f"Component Match — {cat}", int(comp_vc[cat]), _pct(int(comp_vc[cat])))
@@ -419,11 +429,11 @@ def export_alignment_excel(
     # ── SHEET 2: Survey_Alignment_Diagnostics ───────────────
     _write_data_sheet("Survey_Alignment_Diagnostics", result_df, freeze_col=2)
 
-    # ── SHEET 3: Missing_BSA_Core ────────────────────────────
+    # ── SHEET 3: Missing_Questions ───────────────────────────
     missing_mask = result_df["AlignmentStatus"].str.startswith(
         "Missing", na=False)
     if missing_mask.any():
-        _write_data_sheet("Missing_BSA_Core",
+        _write_data_sheet("Missing_Questions",
                           result_df[missing_mask], freeze_col=1)
 
     # ── Serialise to BytesIO ─────────────────────────────────
