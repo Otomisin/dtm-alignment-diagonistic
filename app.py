@@ -159,7 +159,7 @@ with st.sidebar:
     )
 
     st.markdown(
-        "Flag missing questions in:",
+        "Categories to report as missing:",
         help=(
             "A Datakit question tagged with this component that's absent "
             "from the uploaded survey is reported as \"missing\" — but only "
