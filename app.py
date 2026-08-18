@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from config import (PAGE_CONFIG, DEFAULTS, STATUS_COLOURS_HEX,
+from config import (PAGE_CONFIG, DEFAULTS, FORM_COMPONENTS, STATUS_COLOURS_HEX,
                     STATUS_FONT_HEX, STATUS_EMOJI, inject_css)
 from matcher import match_surveys, resolve_col
 from exporter import export_alignment_excel
@@ -87,10 +87,15 @@ with st.sidebar:
     st.markdown('<p class="sidebar-section">⚙️ Configuration</p>',
                 unsafe_allow_html=True)
 
-    formcomponents = st.text_input(
+    _default_component_idx = (
+        FORM_COMPONENTS.index(DEFAULTS["formcomponents"])
+        if DEFAULTS["formcomponents"] in FORM_COMPONENTS else 0
+    )
+    formcomponents = st.selectbox(
         "Component name",
-        value=DEFAULTS["formcomponents"],
-        help="Value to match in the QuestionComponent column",
+        options=FORM_COMPONENTS,
+        index=_default_component_idx,
+        help="Component to match in the QuestionComponent column",
     )
 
     fuzzy_threshold = st.slider(

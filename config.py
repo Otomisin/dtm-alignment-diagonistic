@@ -33,7 +33,7 @@ DEFAULTS = {
     "formcomponents":   "Baseline Sub-Area Assessment",
     "fuzzy_threshold":  0.20,
     "df1_key_col":      "name",
-    "df1_text_col":     "label",
+    "df1_text_col":     "label::English(en)",
     "df1_type_col":     "type",
     "df2_key_col":      "FieldName",
     "df2_text_col":     "QuestionText(en)",
@@ -41,6 +41,34 @@ DEFAULTS = {
     "df2_type_col":     "QuestionAnswerType",
     "df2_comp_col":     "QuestionComponent",
 }
+
+# ────────────────────────────────────────────────────────────
+# Form components — DTM Global Data Kit component list
+# (values as they appear in the Datakit's QuestionComponent column)
+# ────────────────────────────────────────────────────────────
+
+FORM_COMPONENTS = [
+    "Flow Monitoring Survey",
+    "Baseline Location Assessment",
+    "Multi-Sectoral Location Assessment (MSLA)",
+    "Baseline Sub-Area Assessment",
+    "Emergency Event Tracking",
+    "Migrant Presence Monitoring",
+    "Departure Area Monitoring Tool",
+    "Transhumance Early Warning Mechanism",
+    "Household Needs Assessment",
+    "Flow Monitoring Screener",
+    "Displacement and Demographic Calculator (DDC)",
+    "Flow Monitoring Registry",
+    "Transhumance Flow Monitoring",
+    "Drivers of Migration",
+    "Intentions Survey - IND",
+    "Intentions Survey - HH",
+    "Transhumance Individual Surveys",
+    "Flow Monitoring Counter",
+    "Counter Trafficking Module",
+    "Transhumance Presence and Profile",
+]
 
 # ────────────────────────────────────────────────────────────
 # Status colour palette  (used in both UI and Excel export)
