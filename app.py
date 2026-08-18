@@ -157,6 +157,68 @@ with st.sidebar:
         ),
     )
 
+    # ── Column mappings ──────────────────────────────────────
+    # The survey file itself is only uploaded further down in the main
+    # area (later in script order), but Streamlit restores widget state
+    # into session_state at the start of every rerun — so on any run
+    # after a file's been uploaded, we can already "peek" at it here via
+    # its widget key, before its own file_uploader call runs below.
+    _survey_file_peek = st.session_state.get("survey_uploader")
+    _survey_sheet_peek = st.session_state.get(
+        "survey_sheet_input", DEFAULTS["survey_sheet"])
+    survey_columns: list = []
+    if _survey_file_peek is not None:
+        try:
+            _peek_survey = pd.read_excel(
+                _survey_file_peek, sheet_name=_survey_sheet_peek, nrows=0)
+            _survey_file_peek.seek(0)
+            survey_columns = _peek_survey.columns.tolist()
+        except Exception:
+            survey_columns = []
+
+    _dk_src = DEFAULT_DATAKIT_PATH if use_default_dk else uploaded_dk
+    dk_columns: list = []
+    if _dk_src is not None:
+        try:
+            _peek_dk = pd.read_excel(
+                _dk_src, sheet_name=datakit_sheet, nrows=0)
+            if hasattr(_dk_src, "seek"):
+                _dk_src.seek(0)
+            dk_columns = _peek_dk.columns.tolist()
+        except Exception:
+            dk_columns = []
+
+    with st.expander("🗂 Column mappings"):
+        st.caption(
+            "Pick the matching column from your file, or choose "
+            f"\"{_CUSTOM_SENTINEL}\" to type one in."
+        )
+        df1_key_col = _column_picker(
+            "Survey — key field", survey_columns, DEFAULTS["df1_key_col"],
+            "df1_key_col", allow_none=False)
+        df1_text_col = _column_picker(
+            "Survey — label field", survey_columns, DEFAULTS["df1_text_col"],
+            "df1_text_col")
+        df1_type_col = _column_picker(
+            "Survey — type field", survey_columns, DEFAULTS["df1_type_col"],
+            "df1_type_col")
+        st.markdown("---")
+        df2_key_col = _column_picker(
+            "Datakit — key field", dk_columns, DEFAULTS["df2_key_col"],
+            "df2_key_col", allow_none=False)
+        df2_text_col = _column_picker(
+            "Datakit — question text", dk_columns, DEFAULTS["df2_text_col"],
+            "df2_text_col")
+        df2_id_col = _column_picker(
+            "Datakit — unique ID", dk_columns, DEFAULTS["df2_id_col"],
+            "df2_id_col")
+        df2_type_col = _column_picker(
+            "Datakit — answer type", dk_columns, DEFAULTS["df2_type_col"],
+            "df2_type_col")
+        df2_comp_col = _column_picker(
+            "Datakit — component column", dk_columns, DEFAULTS["df2_comp_col"],
+            "df2_comp_col")
+
 
 # ────────────────────────────────────────────────────────────
 # Main area — upload + run
@@ -179,11 +241,13 @@ with col_upload:
         type=["xlsx"],
         label_visibility="collapsed",
         help="Expects a sheet called 'survey' by default (configurable below)",
+        key="survey_uploader",
     )
     survey_sheet = st.text_input(
         "Survey sheet name",
         value=DEFAULTS["survey_sheet"],
         help="Name of the sheet containing the survey questions",
+        key="survey_sheet_input",
     )
 
 with col_run:
@@ -195,28 +259,9 @@ with col_run:
         disabled=(survey_file is None),
     )
 
-# ── Detect real column names (drives both the preview and the
-#    column-mapping dropdowns below) ──────────────────────────
-survey_columns: list = []
-if survey_file is not None:
-    try:
-        _prev_survey = pd.read_excel(
-            survey_file, sheet_name=survey_sheet, nrows=0)
-        survey_file.seek(0)   # reset so the main run can re-read it
-        survey_columns = _prev_survey.columns.tolist()
-    except Exception:
-        survey_columns = []
-
-dk_columns: list = []
-_dk_src = DEFAULT_DATAKIT_PATH if use_default_dk else uploaded_dk
-if _dk_src is not None:
-    try:
-        _prev_dk = pd.read_excel(_dk_src, sheet_name=datakit_sheet, nrows=0)
-        if hasattr(_dk_src, "seek"):
-            _dk_src.seek(0)
-        dk_columns = _prev_dk.columns.tolist()
-    except Exception:
-        dk_columns = []
+# `survey_columns` / `dk_columns` / `_dk_src` were already computed in
+# the sidebar (needed there to populate the Column mappings dropdowns);
+# reused here for the preview panel too.
 
 # ── Column preview (shown once files are loaded) ─────────────
 if survey_file is not None or not use_default_dk and uploaded_dk is not None:
@@ -246,39 +291,6 @@ if survey_file is not None or not use_default_dk and uploaded_dk is not None:
                 st.warning("Could not preview this file.")
             else:
                 st.caption("Upload or enable stored Datakit to preview.")
-
-# ── Column mappings — dropdowns of detected columns once a file is
-#    loaded, falling back to free text before that ────────────
-with st.expander("🗂 Column mappings", expanded=False):
-    st.caption(
-        "Pick the matching column from your file, or choose "
-        f"\"{_CUSTOM_SENTINEL}\" to type one in."
-    )
-    df1_key_col = _column_picker(
-        "Survey — key field", survey_columns, DEFAULTS["df1_key_col"],
-        "df1_key_col", allow_none=False)
-    df1_text_col = _column_picker(
-        "Survey — label field", survey_columns, DEFAULTS["df1_text_col"],
-        "df1_text_col")
-    df1_type_col = _column_picker(
-        "Survey — type field", survey_columns, DEFAULTS["df1_type_col"],
-        "df1_type_col")
-    st.markdown("---")
-    df2_key_col = _column_picker(
-        "Datakit — key field", dk_columns, DEFAULTS["df2_key_col"],
-        "df2_key_col", allow_none=False)
-    df2_text_col = _column_picker(
-        "Datakit — question text", dk_columns, DEFAULTS["df2_text_col"],
-        "df2_text_col")
-    df2_id_col = _column_picker(
-        "Datakit — unique ID", dk_columns, DEFAULTS["df2_id_col"],
-        "df2_id_col")
-    df2_type_col = _column_picker(
-        "Datakit — answer type", dk_columns, DEFAULTS["df2_type_col"],
-        "df2_type_col")
-    df2_comp_col = _column_picker(
-        "Datakit — component column", dk_columns, DEFAULTS["df2_comp_col"],
-        "df2_comp_col")
 
 
 # ────────────────────────────────────────────────────────────
@@ -323,7 +335,7 @@ if run_clicked:
         st.warning(
             f'⚠️ Datakit text column **"{df2_text_col}"** not found — '
             f'using **"{_resolved_dk_text}"** instead. '
-            f'You can update the configured name in the **Column mappings** section above.',
+            f'You can update the configured name in **Column mappings** in the sidebar.',
             icon=None,
         )
     if df1_text_col and _resolved_survey_text and _resolved_survey_text != df1_text_col:
@@ -361,7 +373,7 @@ if run_clicked:
     except Exception as exc:
         progress_bar.empty()
         st.error(f"❌ Matching failed:\n\n```\n{exc}\n```")
-        st.caption("💡 Open the **Preview column names** panel above to check exact column names, then update **Column mappings** below it.")
+        st.caption("💡 Open the **Preview column names** panel above to check exact column names, then update **Column mappings** in the sidebar.")
         st.stop()
 
     # Generate Excel in memory
