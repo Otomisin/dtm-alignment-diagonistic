@@ -198,6 +198,25 @@ CUSTOM_CSS = """
     box-shadow: 0 0 0 2px rgba(46, 87, 151, 0.18) !important;
 }
 
+/* Selectbox — label + value box (Component name, Column mappings
+   dropdowns). Needs the same explicit background as text inputs above:
+   the blanket "force dark text" rule darkens its text either way, but
+   without a pinned background it inherits Streamlit's theme-driven
+   (dark in dark mode) box, which reads as dark-on-dark. */
+[data-testid="stSidebar"] [data-testid="stSelectbox"] label,
+[data-testid="stSidebar"] [data-testid="stSelectbox"] p {
+    color: #1A1A2E !important;
+    font-weight: 500 !important;
+}
+[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] > div {
+    background-color: #FFFFFF !important;
+    border: 1px solid #94A3B8 !important;
+    border-radius: 4px;
+}
+[data-testid="stSidebar"] [data-testid="stSelectbox"] [data-baseweb="select"] * {
+    color: #1A1A2E !important;
+}
+
 /* Info / alert boxes inside sidebar */
 [data-testid="stSidebar"] [data-testid="stAlert"] p,
 [data-testid="stSidebar"] [data-testid="stAlert"] span {
