@@ -73,6 +73,31 @@ def _column_picker(label, columns, default, key, allow_none=True):
     return st.text_input(label, value=default, key=f"{key}_text")
 
 
+def _refresh_survey_columns():
+    """
+    on_change callback for the survey file_uploader / sheet-name inputs.
+
+    Callbacks are guaranteed by Streamlit to run *before* the script
+    reruns, so writing to session_state here is reliably visible to the
+    sidebar's Column mappings section on the very next run — unlike
+    reading the file_uploader's own session_state value early, which
+    depends on widget-state hydration having already happened by that
+    point in script order (true in local testing, but not something to
+    bet a production feature on).
+    """
+    f = st.session_state.get("survey_uploader")
+    sheet = st.session_state.get("survey_sheet_input", DEFAULTS["survey_sheet"])
+    cols: list = []
+    if f is not None:
+        try:
+            df = pd.read_excel(f, sheet_name=sheet, nrows=0)
+            f.seek(0)
+            cols = df.columns.tolist()
+        except Exception:
+            cols = []
+    st.session_state["survey_columns_cache"] = cols
+
+
 # ────────────────────────────────────────────────────────────
 # Session state initialisation
 # ────────────────────────────────────────────────────────────
@@ -82,6 +107,7 @@ for key, default in [
     ("excel_buf", None),
     ("last_survey_name", None),
     ("missing_categories_used", None),
+    ("survey_columns_cache", []),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -183,22 +209,12 @@ with st.sidebar:
 
     # ── Column mappings ──────────────────────────────────────
     # The survey file itself is only uploaded further down in the main
-    # area (later in script order), but Streamlit restores widget state
-    # into session_state at the start of every rerun — so on any run
-    # after a file's been uploaded, we can already "peek" at it here via
-    # its widget key, before its own file_uploader call runs below.
-    _survey_file_peek = st.session_state.get("survey_uploader")
-    _survey_sheet_peek = st.session_state.get(
-        "survey_sheet_input", DEFAULTS["survey_sheet"])
-    survey_columns: list = []
-    if _survey_file_peek is not None:
-        try:
-            _peek_survey = pd.read_excel(
-                _survey_file_peek, sheet_name=_survey_sheet_peek, nrows=0)
-            _survey_file_peek.seek(0)
-            survey_columns = _peek_survey.columns.tolist()
-        except Exception:
-            survey_columns = []
+    # area (later in script order). Its detected columns are kept up to
+    # date in st.session_state["survey_columns_cache"] by the
+    # _refresh_survey_columns on_change callback attached to that
+    # uploader/sheet-name widget, so they're already available by the
+    # time we render the dropdowns here.
+    survey_columns: list = st.session_state["survey_columns_cache"]
 
     _dk_src = DEFAULT_DATAKIT_PATH if use_default_dk else uploaded_dk
     dk_columns: list = []
@@ -266,12 +282,14 @@ with col_upload:
         label_visibility="collapsed",
         help="Expects a sheet called 'survey' by default (configurable below)",
         key="survey_uploader",
+        on_change=_refresh_survey_columns,
     )
     survey_sheet = st.text_input(
         "Survey sheet name",
         value=DEFAULTS["survey_sheet"],
         help="Name of the sheet containing the survey questions",
         key="survey_sheet_input",
+        on_change=_refresh_survey_columns,
     )
 
 with col_run:
