@@ -332,8 +332,11 @@ div[data-testid="stDownloadButton"] > button:hover {
 }
 
 /* ── Main area text inputs ───────────────────────────────── */
+/* No forced text colour here — unlike the sidebar inputs above,
+   these don't pin a matching background, so a hardcoded dark colour
+   goes unreadable against Streamlit's dark-theme background. Let the
+   active theme supply the text colour instead. */
 [data-testid="stTextInput"] input {
-    color: #1A1A2E;
     border-radius: 4px;
     font-size: 0.88rem;
 }
