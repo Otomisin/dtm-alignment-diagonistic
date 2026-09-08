@@ -372,6 +372,11 @@ def export_alignment_excel(
             surv_before + report_present + surv_after + diag_present + dk_present
         )
 
+        # "Alignment aid" columns (everything but the original survey form
+        # columns) get an inverted header — white fill, dark blue text —
+        # so they stand out from the raw survey data at a glance.
+        aid_cols = set(report_present) | set(diag_present) | set(dk_present)
+
         # Build output df (SN prepended)
         out = df[ordered_cols].copy().reset_index(drop=True)
         sn_col = "SN1" if "SN" in out.columns else "SN"
@@ -384,8 +389,12 @@ def export_alignment_excel(
         # Header row
         for col_idx, hdr in enumerate(headers, 1):
             c = ws_d.cell(row=1, column=col_idx, value=hdr)
-            c.fill = _fill(_C["dark_blue"])
-            c.font = _font("FFFFFF", bold=True)
+            if hdr in aid_cols:
+                c.fill = _fill(_C["white"])
+                c.font = _font(_C["dark_blue"], bold=True)
+            else:
+                c.fill = _fill(_C["dark_blue"])
+                c.font = _font("FFFFFF", bold=True)
             c.alignment = _align(h="center")
             c.border = _border()
         ws_d.row_dimensions[1].height = 22
