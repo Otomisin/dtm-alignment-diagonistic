@@ -100,6 +100,10 @@ _COL_WIDTHS: Dict[str, float] = {
     "Matching": 38,
     "AlignmentStatus": 22,
     "ComponentMatch": 18,
+    "FPReview": 22,
+    "Alignment_Actions": 20,
+    "Alignment_Note": 30,
+    "name_original": 30,
 }
 
 _DK_COL_WIDTHS: Dict[str, float] = {
@@ -151,7 +155,13 @@ def export_alignment_excel(
     wb.remove(wb.active)   # drop the default blank sheet
 
     # ── Classify columns ────────────────────────────────────
-    diag_cols = [c for c in ["Matching", "AlignmentStatus", "ComponentMatch"]
+    # Reporting columns that go right after "type", in this order.
+    _REPORT_COLS = [
+        "AlignmentStatus", "FPReview", "Alignment_Actions",
+        "Alignment_Note", "name_original",
+    ]
+    report_cols = [c for c in _REPORT_COLS if c in result_df.columns]
+    diag_cols = [c for c in ["Matching", "ComponentMatch"]
                  if c in result_df.columns]
     misc_cols = [".RowSource"]
 
@@ -162,7 +172,7 @@ def export_alignment_excel(
     ]
 
     # Original survey columns = everything else
-    appended = set(diag_cols + dk_cols + misc_cols)
+    appended = set(report_cols + diag_cols + dk_cols + misc_cols)
     survey_cols = [c for c in result_df.columns if c not in appended]
 
     # ── Stats for Summary sheet ─────────────────────────────
@@ -338,7 +348,10 @@ def export_alignment_excel(
     def _write_data_sheet(sheet_name: str, df: pd.DataFrame, freeze_col: int = 1):
         """
         Write a colour-coded data sheet.
-        Column order: SN | survey cols | diagnostic cols | datakit cols
+        Column order: SN | survey cols up to "type" | report cols
+        (AlignmentStatus, FPReview, Alignment_Actions, Alignment_Note,
+        name_original) | remaining survey cols | diagnostic cols |
+        datakit cols
         """
         ws_d = wb.create_sheet(sheet_name)
         ws_d.sheet_view.showGridLines = False
@@ -347,7 +360,17 @@ def export_alignment_excel(
         diag_present = [c for c in diag_cols if c in df.columns]
         dk_present = [c for c in dk_cols if c in df.columns]
         surv_present = [c for c in survey_cols if c in df.columns]
-        ordered_cols = surv_present + diag_present + dk_present
+        report_present = [c for c in report_cols if c in df.columns]
+
+        if "type" in surv_present:
+            _split = surv_present.index("type") + 1
+            surv_before, surv_after = surv_present[:_split], surv_present[_split:]
+        else:
+            surv_before, surv_after = surv_present, []
+
+        ordered_cols = (
+            surv_before + report_present + surv_after + diag_present + dk_present
+        )
 
         # Build output df (SN prepended)
         out = df[ordered_cols].copy().reset_index(drop=True)

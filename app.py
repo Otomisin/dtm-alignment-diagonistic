@@ -469,9 +469,15 @@ if st.session_state.result is not None:
         c for c in [df1_key_col, df1_text_col, df1_type_col]
         if c and c in result.columns
     ]
+    # Reporting columns, positioned right after "type" per the agreed order
+    _report_cols = [
+        "AlignmentStatus", "FPReview", "Alignment_Actions",
+        "Alignment_Note", "name_original",
+    ]
+    report_show_cols = [c for c in _report_cols if c in result.columns]
     dk_show_cols = [c for c in result.columns if c.startswith("Datakit_")]
     display_cols = (
-        ["AlignmentStatus"] + survey_show_cols + ["Matching"] + dk_show_cols
+        survey_show_cols + report_show_cols + ["Matching"] + dk_show_cols
     )
     display_cols = [c for c in display_cols if c in result.columns]
 

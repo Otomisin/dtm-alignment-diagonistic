@@ -491,6 +491,18 @@ def match_surveys(
             appended = pd.DataFrame(append_rows, columns=result.columns)
             result = pd.concat([result, appended], ignore_index=True)
 
+    # ── Extra reporting columns ───────────────────────────────
+    # Applied after the missing-question rows are appended, so these
+    # cover matched survey rows and appended missing rows alike.
+    result["name_original"] = result[df1_key_col]
+    result[df1_key_col] = None
+
+    result["Alignment_Actions"] = result["AlignmentStatus"].apply(
+        lambda s: "DoesNotNeed2Align" if s == "DoesNotNeed2Align" else "ToAlign"
+    )
+    result["FPReview"] = None    # filled in manually by the reviewing focal point
+    result["Alignment_Note"] = None    # free-text notes, filled in manually
+
     if progress_cb:
         progress_cb("Done.", 1.0)
 
