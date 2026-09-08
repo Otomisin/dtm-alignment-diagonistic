@@ -7,6 +7,7 @@
 # Default Datakit: place file at  data/datakit.xlsx
 # ============================================================
 
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -82,6 +83,7 @@ for key, default in [
     ("excel_buf", None),
     ("last_survey_name", None),
     ("missing_categories_used", None),
+    ("result_timestamp", None),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -419,6 +421,7 @@ if run_clicked:
     st.session_state.excel_buf = excel_buf
     st.session_state.last_survey_name = survey_file.name
     st.session_state.missing_categories_used = missing_categories
+    st.session_state.result_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
 # ────────────────────────────────────────────────────────────
@@ -524,10 +527,11 @@ if st.session_state.result is not None:
 
     col_dl, col_info = st.columns([1, 2])
     with col_dl:
+        _ts = st.session_state.result_timestamp
         st.download_button(
             label="📥 Download Excel Report",
             data=excel_buf,
-            file_name="Survey_Alignment_Diagnostic.xlsx",
+            file_name=f"Survey_Alignment_Diagnostic_{_ts}.xlsx",
             mime=(
                 "application/vnd.openxmlformats-officedocument"
                 ".spreadsheetml.sheet"
