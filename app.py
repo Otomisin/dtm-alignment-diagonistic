@@ -411,6 +411,7 @@ if run_clicked:
         df1_key_col=df1_key_col,
         df1_text_col=df1_text_col,
         formcomponents=formcomponents,
+        original_survey_file=survey_file,
     )
 
     progress_bar.progress(1.0, text="Complete!")
@@ -542,9 +543,10 @@ if st.session_state.result is not None:
         n_total = len(result)
         n_miss = n_missing_appended
         st.caption(
-            f"**3 sheets:** Summary · Survey_Alignment_Diagnostics "
+            f"Includes your uploaded survey's original sheets, plus "
+            f"**Summary · Survey_Alignment_Diagnostics** "
             f"({n_total} rows: {n_df1} survey + {n_miss} missing) "
-            f"· Missing_Questions"
+            f"**· Missing_Questions**"
         )
 
 else:

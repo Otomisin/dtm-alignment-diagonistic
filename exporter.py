@@ -8,7 +8,7 @@ import io
 import numpy as np
 import pandas as pd
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from typing import Dict, List, Optional, Tuple
 from openpyxl.utils import get_column_letter
@@ -115,6 +115,20 @@ _DK_COL_WIDTHS: Dict[str, float] = {
 }
 
 
+def _unique_sheet_name(wb: Workbook, base: str) -> str:
+    """
+    Return `base`, or `base_2`, `base_3`, ... if a sheet by that name
+    already exists (e.g. the uploaded original file happens to already
+    have a "Summary" sheet). Excel requires unique sheet names.
+    """
+    if base not in wb.sheetnames:
+        return base
+    i = 2
+    while f"{base}_{i}" in wb.sheetnames:
+        i += 1
+    return f"{base}_{i}"
+
+
 def _col_width(col_name: str, df2_name: str = "Datakit") -> float:
     """Return an appropriate column width for a given column name."""
     if col_name in _COL_WIDTHS:
@@ -139,20 +153,32 @@ def export_alignment_excel(
     df1_key_col: str = "name",
     df1_text_col: str = "label",
     formcomponents: str = "Baseline Sub-Area Assessment",
+    original_survey_file=None,
 ) -> io.BytesIO:
     """
-    Build a styled three-sheet Excel workbook from the match_surveys() output
-    and return it as an in-memory BytesIO (ready for st.download_button).
+    Build a styled Excel workbook from the match_surveys() output and
+    return it as an in-memory BytesIO (ready for st.download_button).
 
-    Sheets:
+    If `original_survey_file` is given (the raw uploaded survey .xlsx —
+    often a KoBo XLSForm with survey/choices/settings sheets), those
+    sheets are preserved as-is and the generated sheets are appended
+    after them. Otherwise a fresh workbook holds just the generated
+    sheets.
+
+    Generated sheets:
         Summary                      — dashboard + legend
         Survey_Alignment_Diagnostics — all rows, colour-coded
         Missing_Questions            — only Missing* rows (whichever
                                         categories were flagged as missing)
     """
 
-    wb = Workbook()
-    wb.remove(wb.active)   # drop the default blank sheet
+    if original_survey_file is not None:
+        if hasattr(original_survey_file, "seek"):
+            original_survey_file.seek(0)
+        wb = load_workbook(original_survey_file)
+    else:
+        wb = Workbook()
+        wb.remove(wb.active)   # drop the default blank sheet
 
     # ── Classify columns ────────────────────────────────────
     # Reporting columns that go right after "type", in this order.
@@ -213,7 +239,7 @@ def export_alignment_excel(
         return f"{x / tot * 100:.1f}%"
 
     # ── SHEET 1: Summary ────────────────────────────────────
-    ws = wb.create_sheet("Summary")
+    ws = wb.create_sheet(_unique_sheet_name(wb, "Summary"))
     ws.sheet_view.showGridLines = False
 
     # Row 1 — title
@@ -353,7 +379,7 @@ def export_alignment_excel(
         name_original) | remaining survey cols | diagnostic cols |
         datakit cols
         """
-        ws_d = wb.create_sheet(sheet_name)
+        ws_d = wb.create_sheet(_unique_sheet_name(wb, sheet_name))
         ws_d.sheet_view.showGridLines = False
 
         # Build ordered column list
