@@ -161,9 +161,8 @@ def export_alignment_excel(
 
     If `original_survey_file` is given (the raw uploaded survey .xlsx —
     often a KoBo XLSForm with survey/choices/settings sheets), those
-    sheets are preserved as-is and the generated sheets are appended
-    after them. Otherwise a fresh workbook holds just the generated
-    sheets.
+    sheets are preserved as-is and placed after the generated sheets.
+    Otherwise a fresh workbook holds just the generated sheets.
 
     Generated sheets:
         Summary                      — dashboard + legend
@@ -179,6 +178,11 @@ def export_alignment_excel(
     else:
         wb = Workbook()
         wb.remove(wb.active)   # drop the default blank sheet
+
+    # Generated sheets are inserted at the front, in creation order, so
+    # they lead the workbook with any original uploaded-file sheets
+    # (e.g. a KoBo form's survey/choices/settings) following after.
+    _next_sheet_idx = 0
 
     # ── Classify columns ────────────────────────────────────
     # Reporting columns that go right after "type", in this order.
@@ -239,7 +243,8 @@ def export_alignment_excel(
         return f"{x / tot * 100:.1f}%"
 
     # ── SHEET 1: Summary ────────────────────────────────────
-    ws = wb.create_sheet(_unique_sheet_name(wb, "Summary"))
+    ws = wb.create_sheet(_unique_sheet_name(wb, "Summary"), _next_sheet_idx)
+    _next_sheet_idx += 1
     ws.sheet_view.showGridLines = False
 
     # Row 1 — title
@@ -379,7 +384,9 @@ def export_alignment_excel(
         name_original) | remaining survey cols | diagnostic cols |
         datakit cols
         """
-        ws_d = wb.create_sheet(_unique_sheet_name(wb, sheet_name))
+        nonlocal _next_sheet_idx
+        ws_d = wb.create_sheet(_unique_sheet_name(wb, sheet_name), _next_sheet_idx)
+        _next_sheet_idx += 1
         ws_d.sheet_view.showGridLines = False
 
         # Build ordered column list
