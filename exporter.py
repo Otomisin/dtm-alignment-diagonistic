@@ -8,7 +8,7 @@ import io
 import numpy as np
 import pandas as pd
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from typing import Dict, List, Optional, Tuple
 from openpyxl.utils import get_column_letter
@@ -100,6 +100,10 @@ _COL_WIDTHS: Dict[str, float] = {
     "Matching": 38,
     "AlignmentStatus": 22,
     "ComponentMatch": 18,
+    "FPReview": 22,
+    "Alignment_Actions": 20,
+    "Alignment_Note": 30,
+    "name_original": 30,
 }
 
 _DK_COL_WIDTHS: Dict[str, float] = {
@@ -109,6 +113,20 @@ _DK_COL_WIDTHS: Dict[str, float] = {
     "QuestionAnswerType": 22,
     "QuestionComponent": 55,
 }
+
+
+def _unique_sheet_name(wb: Workbook, base: str) -> str:
+    """
+    Return `base`, or `base_2`, `base_3`, ... if a sheet by that name
+    already exists (e.g. the uploaded original file happens to already
+    have a "Summary" sheet). Excel requires unique sheet names.
+    """
+    if base not in wb.sheetnames:
+        return base
+    i = 2
+    while f"{base}_{i}" in wb.sheetnames:
+        i += 1
+    return f"{base}_{i}"
 
 
 def _col_width(col_name: str, df2_name: str = "Datakit") -> float:
@@ -135,23 +153,45 @@ def export_alignment_excel(
     df1_key_col: str = "name",
     df1_text_col: str = "label",
     formcomponents: str = "Baseline Sub-Area Assessment",
+    original_survey_file=None,
 ) -> io.BytesIO:
     """
-    Build a styled three-sheet Excel workbook from the match_surveys() output
-    and return it as an in-memory BytesIO (ready for st.download_button).
+    Build a styled Excel workbook from the match_surveys() output and
+    return it as an in-memory BytesIO (ready for st.download_button).
 
-    Sheets:
+    If `original_survey_file` is given (the raw uploaded survey .xlsx —
+    often a KoBo XLSForm with survey/choices/settings sheets), those
+    sheets are preserved as-is and placed after the generated sheets.
+    Otherwise a fresh workbook holds just the generated sheets.
+
+    Generated sheets:
         Summary                      — dashboard + legend
         Survey_Alignment_Diagnostics — all rows, colour-coded
         Missing_Questions            — only Missing* rows (whichever
                                         categories were flagged as missing)
     """
 
-    wb = Workbook()
-    wb.remove(wb.active)   # drop the default blank sheet
+    if original_survey_file is not None:
+        if hasattr(original_survey_file, "seek"):
+            original_survey_file.seek(0)
+        wb = load_workbook(original_survey_file)
+    else:
+        wb = Workbook()
+        wb.remove(wb.active)   # drop the default blank sheet
+
+    # Generated sheets are inserted at the front, in creation order, so
+    # they lead the workbook with any original uploaded-file sheets
+    # (e.g. a KoBo form's survey/choices/settings) following after.
+    _next_sheet_idx = 0
 
     # ── Classify columns ────────────────────────────────────
-    diag_cols = [c for c in ["Matching", "AlignmentStatus", "ComponentMatch"]
+    # Reporting columns that go right after "type", in this order.
+    _REPORT_COLS = [
+        "AlignmentStatus", "FPReview", "Alignment_Actions",
+        "Alignment_Note", "name_original",
+    ]
+    report_cols = [c for c in _REPORT_COLS if c in result_df.columns]
+    diag_cols = [c for c in ["Matching", "ComponentMatch"]
                  if c in result_df.columns]
     misc_cols = [".RowSource"]
 
@@ -162,7 +202,7 @@ def export_alignment_excel(
     ]
 
     # Original survey columns = everything else
-    appended = set(diag_cols + dk_cols + misc_cols)
+    appended = set(report_cols + diag_cols + dk_cols + misc_cols)
     survey_cols = [c for c in result_df.columns if c not in appended]
 
     # ── Stats for Summary sheet ─────────────────────────────
@@ -203,7 +243,8 @@ def export_alignment_excel(
         return f"{x / tot * 100:.1f}%"
 
     # ── SHEET 1: Summary ────────────────────────────────────
-    ws = wb.create_sheet("Summary")
+    ws = wb.create_sheet(_unique_sheet_name(wb, "Summary"), _next_sheet_idx)
+    _next_sheet_idx += 1
     ws.sheet_view.showGridLines = False
 
     # Row 1 — title
@@ -338,16 +379,36 @@ def export_alignment_excel(
     def _write_data_sheet(sheet_name: str, df: pd.DataFrame, freeze_col: int = 1):
         """
         Write a colour-coded data sheet.
-        Column order: SN | survey cols | diagnostic cols | datakit cols
+        Column order: SN | survey cols up to "type" | report cols
+        (AlignmentStatus, FPReview, Alignment_Actions, Alignment_Note,
+        name_original) | remaining survey cols | diagnostic cols |
+        datakit cols
         """
-        ws_d = wb.create_sheet(sheet_name)
+        nonlocal _next_sheet_idx
+        ws_d = wb.create_sheet(_unique_sheet_name(wb, sheet_name), _next_sheet_idx)
+        _next_sheet_idx += 1
         ws_d.sheet_view.showGridLines = False
 
         # Build ordered column list
         diag_present = [c for c in diag_cols if c in df.columns]
         dk_present = [c for c in dk_cols if c in df.columns]
         surv_present = [c for c in survey_cols if c in df.columns]
-        ordered_cols = surv_present + diag_present + dk_present
+        report_present = [c for c in report_cols if c in df.columns]
+
+        if "type" in surv_present:
+            _split = surv_present.index("type") + 1
+            surv_before, surv_after = surv_present[:_split], surv_present[_split:]
+        else:
+            surv_before, surv_after = surv_present, []
+
+        ordered_cols = (
+            surv_before + report_present + surv_after + diag_present + dk_present
+        )
+
+        # "Alignment aid" columns (everything but the original survey form
+        # columns) get an inverted header — white fill, dark blue text —
+        # so they stand out from the raw survey data at a glance.
+        aid_cols = set(report_present) | set(diag_present) | set(dk_present)
 
         # Build output df (SN prepended)
         out = df[ordered_cols].copy().reset_index(drop=True)
@@ -361,8 +422,12 @@ def export_alignment_excel(
         # Header row
         for col_idx, hdr in enumerate(headers, 1):
             c = ws_d.cell(row=1, column=col_idx, value=hdr)
-            c.fill = _fill(_C["dark_blue"])
-            c.font = _font("FFFFFF", bold=True)
+            if hdr in aid_cols:
+                c.fill = _fill(_C["white"])
+                c.font = _font(_C["dark_blue"], bold=True)
+            else:
+                c.fill = _fill(_C["dark_blue"])
+                c.font = _font("FFFFFF", bold=True)
             c.alignment = _align(h="center")
             c.border = _border()
         ws_d.row_dimensions[1].height = 22

@@ -7,6 +7,7 @@
 # Default Datakit: place file at  data/datakit.xlsx
 # ============================================================
 
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -108,6 +109,7 @@ for key, default in [
     ("last_survey_name", None),
     ("missing_categories_used", None),
     ("survey_columns_cache", []),
+    ("result_timestamp", None),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -427,6 +429,7 @@ if run_clicked:
         df1_key_col=df1_key_col,
         df1_text_col=df1_text_col,
         formcomponents=formcomponents,
+        original_survey_file=survey_file,
     )
 
     progress_bar.progress(1.0, text="Complete!")
@@ -437,6 +440,7 @@ if run_clicked:
     st.session_state.excel_buf = excel_buf
     st.session_state.last_survey_name = survey_file.name
     st.session_state.missing_categories_used = missing_categories
+    st.session_state.result_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
 # ────────────────────────────────────────────────────────────
@@ -487,9 +491,15 @@ if st.session_state.result is not None:
         c for c in [df1_key_col, df1_text_col, df1_type_col]
         if c and c in result.columns
     ]
+    # Reporting columns, positioned right after "type" per the agreed order
+    _report_cols = [
+        "AlignmentStatus", "FPReview", "Alignment_Actions",
+        "Alignment_Note", "name_original",
+    ]
+    report_show_cols = [c for c in _report_cols if c in result.columns]
     dk_show_cols = [c for c in result.columns if c.startswith("Datakit_")]
     display_cols = (
-        ["AlignmentStatus"] + survey_show_cols + ["Matching"] + dk_show_cols
+        survey_show_cols + report_show_cols + ["Matching"] + dk_show_cols
     )
     display_cols = [c for c in display_cols if c in result.columns]
 
@@ -536,10 +546,11 @@ if st.session_state.result is not None:
 
     col_dl, col_info = st.columns([1, 2])
     with col_dl:
+        _ts = st.session_state.result_timestamp
         st.download_button(
             label="📥 Download Excel Report",
             data=excel_buf,
-            file_name="Survey_Alignment_Diagnostic.xlsx",
+            file_name=f"Survey_Alignment_Diagnostic_{_ts}.xlsx",
             mime=(
                 "application/vnd.openxmlformats-officedocument"
                 ".spreadsheetml.sheet"
@@ -550,9 +561,10 @@ if st.session_state.result is not None:
         n_total = len(result)
         n_miss = n_missing_appended
         st.caption(
-            f"**3 sheets:** Summary · Survey_Alignment_Diagnostics "
+            f"Includes your uploaded survey's original sheets, plus "
+            f"**Summary · Survey_Alignment_Diagnostics** "
             f"({n_total} rows: {n_df1} survey + {n_miss} missing) "
-            f"· Missing_Questions"
+            f"**· Missing_Questions**"
         )
 
 else:
